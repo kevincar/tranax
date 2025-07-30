@@ -1,4 +1,4 @@
-# TranAx – Safari Web Extension
+# TranAx ![Tranax](https://github.com/kevincar/tranax/raw/refs/heads/main/TranAx%20Extension/Resources/images/icon-48.png)  Safari Web Extension
 
 **TranAx** is a Safari Web Extension designed to run on specific pages (such
 as `walmart.com/orders`) and help users extract transaction data. It
