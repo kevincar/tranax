@@ -18,7 +18,7 @@ class Order {
         let subtotal = Order.loadSubtotal();
         let total = parseFloat(document.querySelector(".bill-order-total-payment").innerText.trim().split("\n").at(-1).substr(1));
         let transactions = await Order.loadTransactions(stub.orderNumber);
-        let items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromObject(e));
+        let items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
         return new Order(stub.orderNumber, stub.orderDate, stub.orderType, tax, subtotal, total, items, transactions);
     }
 

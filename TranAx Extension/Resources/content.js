@@ -24,7 +24,8 @@ async function gatherData(toDate) {
         for (let i = 0; i < orderElements.length; i++) {
             if (orders.length > 0 && orders.at(-1).orderDate <= toDate) break;
             let orderStubElement = document.querySelector(`[data-testid='orderGroup-${i}']`);
-            let orderStub = OrderStub.fromObject(orderStubElement);
+            let orderStub = OrderStub.fromElement(orderStubElement);
+            if (!orderStub.fulfilled) continue;
 
             // Enter the order
             orderStub.button.click();
