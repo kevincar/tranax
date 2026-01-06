@@ -1,4 +1,4 @@
-function waitForElement(selector, timeout = 10000) {
+function waitForElement(selector, timeout = 20000) {
   return new Promise((resolve, reject) => {
     const el = document.querySelector(selector);
     if (el) return resolve(el);
