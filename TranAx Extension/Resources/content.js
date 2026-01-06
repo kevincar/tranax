@@ -20,10 +20,10 @@ async function gatherData(toDate) {
     let orders = [];
 
     do {
-        let orderElements = [...document.querySelectorAll("[data-testid*='orderGroup']")];
+        let orderElements = [...document.querySelectorAll("[data-testid*='order-']")].filter(e => e.attributes["data-testid"].value.match(/order-\d+/) != null);
         for (let i = 0; i < orderElements.length; i++) {
             if (orders.length > 0 && orders.at(-1).orderDate <= toDate) break;
-            let orderStubElement = document.querySelector(`[data-testid='orderGroup-${i}']`);
+            let orderStubElement = document.querySelector(`[data-testid='order-${i}']`);
             let orderStub = OrderStub.fromElement(orderStubElement);
             if (!orderStub.fulfilled) continue;
 
