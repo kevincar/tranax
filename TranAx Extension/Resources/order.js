@@ -14,12 +14,13 @@ class Order {
     }
 
     static async fromPage(stub) {
-        let tax = parseFloat(document.querySelector(".print-fees-item .items-end").innerText.trim().substr(1));
-        let subtotal = Order.loadSubtotal();
-        let total = parseFloat(document.querySelector(".bill-order-total-payment").innerText.trim().split("\n").at(-1).substr(1));
-        let transactions = await Order.loadTransactions(stub.orderNumber);
-        let items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
-        return new Order(stub.orderNumber, stub.orderDate, stub.orderType, tax, subtotal, total, items, transactions);
+        const orderNumber = document.querySelector(".print-bill-bar-id").innerText;
+        const tax = parseFloat(document.querySelector(".print-fees-item .items-end").innerText.trim().substr(1));
+        const subtotal = Order.loadSubtotal();
+        const total = parseFloat(document.querySelector(".bill-order-total-payment").innerText.trim().split("\n").at(-1).substr(1));
+        const transactions = await Order.loadTransactions(stub.orderNumber);
+        const items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
+        return new Order(orderNumber, stub.orderDate, stub.orderType, tax, subtotal, total, items, transactions);
     }
 
     static async loadTransactions(orderNumber) {
