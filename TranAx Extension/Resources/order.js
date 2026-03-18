@@ -2,12 +2,13 @@
 /* global Item, waitForElement, Transaction, waitForElementNot */
 
 class Order {
-    constructor(orderNumber, orderDate, orderType, tax, subtotal, total, items, transactions) {
+    constructor(orderNumber, orderDate, orderType, tax, subtotal, savings, total, items, transactions) {
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
         this.orderType = orderType;
         this.tax = tax;
         this.subtotal = subtotal;
+        this.savings = savings;
         this.total = total;
         this.items = items;
         this.transactions = transactions;
@@ -17,10 +18,11 @@ class Order {
         const orderNumber = document.querySelector(".print-bill-bar-id").innerText;
         const tax = parseFloat(document.querySelector(".print-fees-item .items-end").innerText.trim().substr(1));
         const subtotal = Order.loadSubtotal();
+        const savings = Order.loadSavings();
         const total = parseFloat(document.querySelector(".bill-order-total-payment").innerText.trim().split("\n").at(-1).substr(1));
         const transactions = await Order.loadTransactions(stub.orderNumber);
         const items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
-        return new Order(orderNumber, stub.orderDate, stub.orderType, tax, subtotal, total, items, transactions);
+        return new Order(orderNumber, stub.orderDate, stub.orderType, tax, subtotal, savings, total, items, transactions);
     }
 
     static async loadTransactions(orderNumber) {
@@ -50,8 +52,16 @@ class Order {
 
     static loadSubtotal() {
         let e = document.querySelector(".bill-order-payment-subtotal span");
-        if (!e) e = document.querySelector("[aria-label*='Subtotal']").parentElement.children[1];
+        if (!e) e = document.querySelector("[aria-label*='Subtotal']").lastChild;
         return parseFloat(e.innerText.trim().substr(1));
+    }
+
+    static loadSavings() {
+        const e = document.querySelector("[aria-label*='Savings']");
+        if (!e) return 0.0;
+        const savingsText = e.lastChild.innerText;
+        const numberText = savingsText.replace("$", "").trim();
+        return parseFloat(numberText);
     }
 
     static toItemTSV(orders) {
@@ -70,6 +80,7 @@ class Order {
             Item.headerText,
             "tax",
             "subtotal",
+            "savings",
             "total"
         ];
         return headerNames.join("\t")
@@ -91,6 +102,7 @@ class Order {
             e.rowText,
             this.tax,
             this.subtotal,
+            this.savings,
             this.total
         ].join("\t")).join("\n");
     }
