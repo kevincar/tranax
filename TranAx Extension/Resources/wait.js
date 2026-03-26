@@ -64,7 +64,91 @@ function waitForLocationChange(oldHref, timeout = 10000, interval = 100) {
   });
 }
 
+function waitForElementContentChange(selector, timeout = 20000, getValue = el => el.textContent, originalValue, settleTime = 0) {
+  return new Promise((resolve, reject) => {
+    let observer = null;
+    let timer = null;
+    let settleTimer = null;
+
+    const cleanup = () => {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+
+      if (settleTimer) {
+        clearTimeout(settleTimer);
+        settleTimer = null;
+      }
+    };
+
+    const finish = (error, el) => {
+      cleanup();
+      if (error) reject(error);
+      else resolve(el);
+    };
+
+    const initialElement = document.querySelector(selector);
+    const initialValue = originalValue === undefined && initialElement
+      ? getValue(initialElement)
+      : originalValue;
+
+    const checkForChange = () => {
+      const el = document.querySelector(selector);
+      if (!el) return;
+
+      const currentValue = getValue(el);
+      const hasChanged = initialValue === undefined || currentValue !== initialValue;
+
+      if (!hasChanged) {
+        if (settleTimer) {
+          clearTimeout(settleTimer);
+          settleTimer = null;
+        }
+        return;
+      }
+
+      if (!settleTime) {
+        finish(null, el);
+        return;
+      }
+
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        const currentElement = document.querySelector(selector);
+        if (!currentElement) return;
+
+        const settledValue = getValue(currentElement);
+        const isStillChanged = initialValue === undefined || settledValue !== initialValue;
+        if (isStillChanged) {
+          finish(null, currentElement);
+        }
+      }, settleTime);
+    };
+
+    checkForChange();
+
+    observer = new MutationObserver(checkForChange);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true
+    });
+
+    if (timeout) {
+      timer = setTimeout(() => {
+        finish(new Error(`Timeout waiting for content change in ${selector}`));
+      }, timeout);
+    }
+  });
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-

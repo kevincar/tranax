@@ -35,15 +35,18 @@ async function gatherData(toDate) {
            
             // go back
             //document.querySelector("[link-identifier='Purchase history']").click();
+            await sleep(2000);
             window.history.back();
+            await sleep(2000);
             await waitForElement("[data-testid*='orderGroup']");
             console.log(`Order: ${orders}`);
         }
 
         // next page
-        let url = location.href;
+        const originalOrderText = document.querySelector("[data-testid='order-0']").textContent;
         document.querySelector("button[data-automation-id='next-pages-button']").click();
-        await waitForLocationChange(url);
+        await sleep(2000);
+        await waitForElementContentChange("[data-testid='order-0']", 20000, el => el.textContent, originalOrderText);
         await waitForElement("button[data-automation-id='next-pages-button']");
 
     } while(orders.at(-1).orderDate > toDate)
