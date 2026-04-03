@@ -47,6 +47,8 @@ function initDate() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("Extension version:", browser.runtime.getManifest().version);
+
   const message = document.getElementById("message");
   const content = document.getElementById("content");
 
@@ -75,4 +77,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-

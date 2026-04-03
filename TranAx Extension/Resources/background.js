@@ -2,7 +2,8 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("Received request:", request);
 
   if (request.greeting === "hello") {
-    return Promise.resolve({ action: "monitor" });
+    const version = browser.runtime.getManifest().version
+    return Promise.resolve({ action: "monitor", version: version });
   }
 
   if (request.action === "download_tsv") {
