@@ -9,30 +9,49 @@
 <body>
     <h1>TranAx</h1>
 
-    <!-- Message Display -->
-    <div id="message" style="display:none;">
+    <div id="message" class="hidden">
         Cannot Run<br />
         Please navigate to <a href="http://walmart.com/orders">Walmart Orders</a>
     </div>
 
-    <!-- Date Picker Dropdowns -->
-    <div id="content" style="display:none;">
+    <div id="content" class="hidden">
+        <section id="main-page" class="page">
+            <div>
+                Select the date for how far back you'd like to pull transations.
+                The further back you select, the longer the time required to pull
+                the data.
+            </div>
 
-        <div>
-            Select the date for how far back you'd like to pull transations.
-            The further back you select, the longer the time required to pull
-            the data.
-        </div>
+            <div id="date-container">
+                <select id="year"></select>
+                <select id="month"></select>
+                <select id="day"></select>
+            </div>
 
-        <div id="date-container">
-            <select id="year"></select>
-            <select id="month"></select>
-            <select id="day"></select>
-        </div>
+            <div class="button-row">
+                <button id="download-btn">Download Data</button>
+                <button id="open-test-btn" type="button">Testing</button>
+            </div>
+        </section>
 
-        <!-- Download Button -->
-        <button id="btn">Download Data</button>
-    <div>
+        <section id="test-page" class="page hidden">
+            <div class="button-row">
+                <button id="back-btn" type="button">Back</button>
+                <button id="run-tests-btn" type="button">Run Tests</button>
+            </div>
+
+            <div id="test-status" class="status-text"></div>
+
+            <table id="test-table">
+                <thead>
+                    <tr>
+                        <th>Label</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="test-results-body"></tbody>
+            </table>
+        </section>
+    </div>
 </body>
 </html>
-

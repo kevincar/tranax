@@ -66,5 +66,21 @@ browser.runtime.sendMessage({ greeting: "hello" }).then((response) => {
 });
 
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action == "download_tsv")  (async () => {await gatherData(new Date(request.date))})();
+    if (request.action == "download_tsv") {
+        return (async () => {
+            await gatherData(new Date(request.date));
+            return { ok: true };
+        })();
+    }
+
+    if (request.action == "run_order_tests") {
+        return (async () => {
+            try {
+                const results = await Order.runPageTests();
+                return { ok: true, results: results };
+            } catch (error) {
+                return { ok: false, error: error.message, results: [] };
+            }
+        })();
+    }
 });

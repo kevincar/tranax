@@ -4,24 +4,69 @@
 
 body {
     min-width: 300px;
+    margin: 0;
     padding: 10px;
-
     font-family: system-ui;
     text-align: center;
 }
 
 select {
-  min-width: 90px;
-  font-size: 0.9em;
+    min-width: 90px;
+    font-size: 0.9em;
 }
 
 div {
     margin-bottom: 1em;
 }
 
+button {
+    font: inherit;
+}
+
 #date-container {
     display: flex;
+    gap: 8px;
     justify-content: space-between;
+}
+
+.page {
+    display: block;
+}
+
+.hidden,
+.page.hidden {
+    display: none;
+}
+
+.button-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.button-row button {
+    flex: 1;
+}
+
+.status-text {
+    min-height: 1.2em;
+    margin: 8px 0 12px;
+    font-size: 0.9em;
+}
+
+#test-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    text-align: left;
+}
+
+#test-table th,
+#test-table td {
+    border: 1px solid currentColor;
+    padding: 6px 8px;
+    vertical-align: top;
+    word-break: break-word;
 }
 
 @media (prefers-color-scheme: dark) {
