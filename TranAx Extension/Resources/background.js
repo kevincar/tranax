@@ -7,14 +7,26 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "download_tsv") {
-    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+    return browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       if (tabs.length > 0) {
         console.log("Forwarding message to tab id:", tabs[0].id);
-        browser.tabs.sendMessage(tabs[0].id, request);
-      } else {
-        console.warn("No active tab found.");
+        return browser.tabs.sendMessage(tabs[0].id, request);
       }
+
+      console.warn("No active tab found.");
+      return { ok: false, error: "No active tab found." };
+    });
+  }
+
+  if (request.action === "run_order_tests") {
+    return browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs.length > 0) {
+        console.log("Forwarding test request to tab id:", tabs[0].id);
+        return browser.tabs.sendMessage(tabs[0].id, request);
+      }
+
+      console.warn("No active tab found.");
+      return { ok: false, error: "No active tab found.", results: [] };
     });
   }
 });
-

@@ -19,7 +19,7 @@ class Order {
 
     static async fromPage(stub) {
         const orderNumber = document.querySelector(".print-bill-bar-id").innerText;
-        const transactions = await Order.loadTransactions(stub.orderNumber);
+        const transactions = await Order.loadTransactions(orderNumber);
         const items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
         return new Order(
             orderNumber,
@@ -165,6 +165,97 @@ class Order {
         return parseInt(cardNumberText);
     }
 
+    static async runPageTests() {
+        const tests = [
+            {
+                label: "Order Number",
+                run: () => document.querySelector(".print-bill-bar-id").innerText.trim()
+            },
+            {
+                label: "Subtotal Initial",
+                run: () => this.loadSubtotalInitial()
+            },
+            {
+                label: "Savings",
+                run: () => this.loadSavings()
+            },
+            {
+                label: "Subtotal Final",
+                run: () => this.loadSubtotalFinal()
+            },
+            {
+                label: "Delivery Fee",
+                run: () => this.loadDeliveryFee()
+            },
+            {
+                label: "Taxes",
+                run: () => this.loadTaxes()
+            },
+            {
+                label: "Driver Tip",
+                run: () => this.loadDriverTip()
+            },
+            {
+                label: "Total",
+                run: () => this.loadTotal()
+            },
+            {
+                label: "Card Number",
+                run: () => this.loadCardNumber()
+            },
+            {
+                label: "Items Found",
+                run: () => document.querySelectorAll("div[data-testid='itemtile-stack']").length
+            },
+            {
+                label: "Transactions Found",
+                run: async () => {
+                    const orderNumber = document.querySelector(".print-bill-bar-id").innerText.trim();
+                    const transactions = await this.loadTransactions(orderNumber);
+                    return transactions.length;
+                }
+            }
+        ];
+
+        const results = [];
+        for (const test of tests) {
+            try {
+                const value = await test.run();
+                results.push({
+                    label: test.label,
+                    result: this.serializeTestValue(value)
+                });
+            } catch (error) {
+                results.push({
+                    label: test.label,
+                    result: `ERROR: ${error.message}`
+                });
+            }
+        }
+
+        return results;
+    }
+
+    static serializeTestValue(value) {
+        if (value === undefined || value === null) {
+            return "";
+        }
+
+        if (Number.isNaN(value)) {
+            return "NaN";
+        }
+
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+
+        if (typeof value === "object") {
+            return JSON.stringify(value);
+        }
+
+        return String(value);
+    }
+
     static toItemTSV(orders) {
         return [Order.itemHeaderText, ...orders.map(e => e.itemRowText)].join("\n");
     }
@@ -182,7 +273,7 @@ class Order {
             "subtotal_initial",
             "savings",
             "subtotal_final",
-            "delivery_fee"
+            "delivery_fee",
             "tax",
             "driver_tip",
             "total"
@@ -210,7 +301,6 @@ class Order {
             this.delivery_fee,
             this.tax,
             this.driver_tip,
-            this.savings,
             this.total
         ].join("\t")).join("\n");
     }
