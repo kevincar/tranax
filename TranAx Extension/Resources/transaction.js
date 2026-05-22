@@ -10,20 +10,20 @@ class Transaction {
     }
 
     static fromPage(orderNumber) {
-        let startingElement = document.querySelector("h3[aria-label*='Ending']").parentElement;
-        let children = [... startingElement.children].filter(e => e.tagName == "H3" || (e.tagName == "DIV" && e.className == ""));
-        let cardNumber = children[0].innerText.split(" ").splice(-1)[0]
+        const startingElement = document.querySelector("h3[aria-label*='charge history']").parentElement;
+        const children = [... startingElement.children].filter(e => e.tagName == "H3" || (e.tagName == "DIV" && e.className == ""));
+        const cardNumber = children[0].innerText.split(" ").splice(-1)[0]
         let transaction_data = [];
         let curType = "";
         children.slice(1, children.length).forEach(e => {
-            let typeElement = e.querySelector("h4");
-            let dataElement = e.querySelector("h5");
+            const typeElement = e.querySelector("h4");
+            const dataElement = e.querySelector("h5");
             if (typeElement != null) {
                 curType = typeElement.innerText;
             }
             else if (dataElement != null) {
-                let date = new Date(dataElement.innerText);
-                let trans_objs = [... e.querySelectorAll("li")].map(e => {
+                const date = new Date(dataElement.innerText);
+                const trans_objs = [... e.querySelectorAll("li")].map(e => {
                     return {
                         date: date,
                         time: [... e.querySelectorAll(".lh-copy")].at(-1).innerText,

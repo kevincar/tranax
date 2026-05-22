@@ -37,16 +37,22 @@ class Order {
         );
     }
 
+    static hasSavings() {
+        return this.loadSavings() < 0;
+    }
+
     static async loadTransactions(orderNumber) {
         // Open Bar
         let ctaButton = document.querySelector("button[data-testid='charge-history-cta']");
         if (ctaButton != null) {
             ctaButton.click();
+            await sleep(2000);
             await waitForElement("h4");
 
             let transactions = Transaction.fromPage(orderNumber);
 
             document.querySelector("button[aria-label='close panel']").click();
+            await sleep(2000);
             await waitForElementNot("h4");
             return transactions;
         } else {
@@ -63,18 +69,11 @@ class Order {
     }
 
     static loadSubtotalInitial() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const subtotalSpans = spans.filter(e => e.textContent.includes("Previous subtotal"));
-        if (subtotalSpans.length == 0) {
-            console.log("No subtotal spans found!");
+        if (!this.hasSavings()) {
+            console.log("No Savings... No subtotal initial!");
             return NaN;
         }
-        const subtotalSpan = subtotalSpans[0];
-        const subtotalDiv = subtotalSpan.parentNode;
-        const subtotalText = subtotalDiv.children[1].textContent.replace("$", "").trim();
-        return parseFloat(subtotalText);
-    }
-    static loadSubtotalFinal() {
+
         const spans = Array.from(document.querySelectorAll("span"));
         const subtotalSpans = spans.filter(e => e.textContent.includes("Subtotal"));
         if (subtotalSpans.length == 0) {
@@ -87,16 +86,36 @@ class Order {
         return parseFloat(subtotalText);
     }
 
+    static loadSubtotalFinal() {
+        const spans = Array.from(document.querySelectorAll("span"));
+        const potSpans = spans.filter(e => e.ariaLabel?.includes("savings"));
+        const noAria = potSpans.length == 0;
+        const subtotalSpans = noAria ? spans.filter(e => e.textContent.includes("Subtotal")) : potSpans;
+
+        if (subtotalSpans.length == 0) {
+            console.log("No subtotal spans found!");
+            return NaN;
+        }
+
+        const subtotalSpan = subtotalSpans[0];
+        const subtotalContent = noAria ? subtotalSpan.parentNode.parentNode.children[1].textContent : subtotalSpan.textContent;
+        const subtotalText = subtotalContent.replace("$", "").trim();
+
+        return parseFloat(subtotalText);
+    }
+
     static loadSavings() {
         const spans = Array.from(document.querySelectorAll("span"));
-        const savingSpans = spans.filter(e => e.textContent.includes("Savings of"));
+        const savingSpans = spans.filter(e => e.textContent.includes("Savings"));
         if (savingSpans.length == 0) {
             console.log("No savings spans found!");
             return NaN;
         }
         const savingSpan = savingSpans[0];
-        const savingDiv = savingSpan.parentNode;
-        const savingText = savingDiv.children[1].textContent.replace("$", "").trim();
+        const isGas = savingSpan.textContent.includes("Gas");
+        const savingDiv = isGas? savingSpan.parentNode.parentNode : savingSpan.parentNode;
+        const savingContent = isGas ? Array.from(savingDiv.children).at(-1) : savingDiv.children[2];
+        const savingText = savingContent.textContent.replace("$", "").trim();
         return parseFloat(savingText);
     }
 
@@ -108,7 +127,7 @@ class Order {
             console.log("No delivery spans found!");
             return NaN;
         }
-        const deliveryTable = deliverySpans.at(-1).parentElement.parentElement.parentElement;
+        const deliveryTable = deliverySpans[0].parentElement;
         const deliveryCostDiv = Array.from(deliveryTable.children).at(-1);
         const deliverySpan = Array.from(deliveryCostDiv.children).at(-1);
         const deliveryText = deliverySpan.textContent.replace("$", "").trim();
@@ -117,7 +136,7 @@ class Order {
 
     static loadTaxes() {
         const spans = Array.from(document.querySelectorAll("span"));
-        const taxSpans = spans.filter(e => e.textContent.includes("Taxes"));
+        const taxSpans = spans.filter(e => e.textContent.includes("Tax"));
         if (taxSpans.length == 0) {
             console.log("No tax spans found!");
             return NaN;
@@ -287,6 +306,10 @@ class Order {
             "orderType",
             Transaction.headerText
         ].join("\t")
+    }
+
+    get orderId() {
+        return parseInt(this.orderNumber.replace(/-/g, "").match(/\d+/)[0]);
     }
 
     get itemRowText() {

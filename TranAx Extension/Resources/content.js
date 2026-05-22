@@ -27,6 +27,12 @@ async function gatherData(toDate) {
             let orderStub = OrderStub.fromElement(orderStubElement);
             if (!orderStub.fulfilled) continue;
 
+            // If the order is already in the set...
+            if (orders.find(o => o.orderId == orderStub.orderId)) {
+                console.log(`Duplicate order number: ${orderStub.orderId}`);
+                continue;
+            }
+
             // Enter the order
             orderStub.button.click();
             await waitForElement(".print-bill-body");
@@ -35,9 +41,9 @@ async function gatherData(toDate) {
            
             // go back
             //document.querySelector("[link-identifier='Purchase history']").click();
-            await sleep(2000);
+            await sleepvar(3000, 8000);
             window.history.back();
-            await sleep(2000);
+            await sleepvar(3000, 8000);
             await waitForElement("[data-testid*='orderGroup']");
             console.log(`Order: ${orders}`);
         }
@@ -45,7 +51,7 @@ async function gatherData(toDate) {
         // next page
         const originalOrderText = document.querySelector("[data-testid='order-0']").textContent;
         document.querySelector("button[data-automation-id='next-pages-button']").click();
-        await sleep(2000);
+        await sleepvar(2000, 8000);
         await waitForElementContentChange("[data-testid='order-0']", 20000, el => el.textContent, originalOrderText);
         await waitForElement("button[data-automation-id='next-pages-button']");
 
@@ -54,7 +60,7 @@ async function gatherData(toDate) {
     let itemTSVContent = Order.toItemTSV(orders);
     downloadTSV("order_items.tsv", itemTSVContent);
 
-    await sleep(1000);
+    await sleepvar(2000, 8000);
 
     let tranTSVContent = Order.toTranTSV(orders);
     downloadTSV("order_transactions.tsv", tranTSVContent);

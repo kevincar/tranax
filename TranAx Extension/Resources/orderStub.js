@@ -1,5 +1,6 @@
 class OrderStub {
-    constructor(orderType, orderDate, button, canceled = false, fulfilled = true) {
+    constructor(orderId, orderType, orderDate, button, canceled = false, fulfilled = true) {
+        this.orderId = orderId;
         this.orderType = orderType;
         this.orderDate = orderDate;
         this.button = button;
@@ -8,7 +9,10 @@ class OrderStub {
     }
 
     static fromElement(object) {
-        const orderType = object.querySelector("[id*='caption']").innerText;
+        const orderTypeObj = object.querySelector("[id*='caption']");
+        const orderIdMatch = orderTypeObj.id.match(/caption-(\d+)-*/);
+        const orderId = orderIdMatch ? parseInt(orderIdMatch[1]) : null;
+        const orderType = orderTypeObj.innerText;
 
         const boldText = object.querySelector("h2");
         const canceled = boldText.innerText == "Canceled"
@@ -29,6 +33,6 @@ class OrderStub {
             }
         }
         let button = object.querySelector("button[data-automation-id*='view-order-details']");
-        return new OrderStub(orderType, orderDate, button, canceled, fulfilled);
+        return new OrderStub(orderId, orderType, orderDate, button, canceled, fulfilled);
     }
 }

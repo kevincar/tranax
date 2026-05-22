@@ -152,3 +152,8 @@ function waitForElementContentChange(selector, timeout = 20000, getValue = el =>
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+function sleepvar(min, max) {
+  let value = Math.floor(Math.random() * (max - min + 1)) + min;
+  return sleep(value);
+}
