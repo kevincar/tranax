@@ -29,7 +29,7 @@ class Transaction {
                         time: [... e.querySelectorAll(".lh-copy")].at(-1).innerText,
                         type: curType,
                         title: e.querySelector("h6").innerText,
-                        cost: parseFloat(e.querySelector(".items-end").innerText.trim().slice(1, 1000))
+                        cost: parseFloat(e.querySelector(".items-end").innerText.trim().replace("$", ""))
                     };
                 });
                 transaction_data = transaction_data.concat(trans_objs);
