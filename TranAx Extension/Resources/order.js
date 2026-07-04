@@ -194,7 +194,7 @@ class Order {
 
     static loadTotal() {
         const spans = Array.from(document.querySelectorAll("span"));
-        const totalSpans = spans.filter(e => e.textContent.includes("Total"));
+        const totalSpans = spans.filter(e => e.textContent.includes("Total") && e.classList.length > 1);
         if (totalSpans.length == 0) {
             console.log("No total spans found!");
             return NaN;
