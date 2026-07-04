@@ -53,6 +53,7 @@ const testLabels = [
     "Subtotal Final",
     "Delivery Fee",
     "Minimum Fee",
+    "Bag Fee",
     "Taxes",
     "Driver Tip",
     "Total",

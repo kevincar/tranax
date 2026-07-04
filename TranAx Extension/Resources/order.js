@@ -2,7 +2,7 @@
 /* global Item, waitForElement, Transaction, waitForElementNot */
 
 class Order {
-    constructor(orderNumber, orderDate, orderType, subtotal_initial, savings, subtotal_final, delivery_fee, minimum_fee, tax, driver_tip, total, items, transactions) {
+    constructor(orderNumber, orderDate, orderType, subtotal_initial, savings, subtotal_final, delivery_fee, minimum_fee, bag_fee, tax, driver_tip, total, items, transactions) {
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
         this.orderType = orderType;
@@ -11,6 +11,7 @@ class Order {
         this.subtotal_final = subtotal_final;
         this.delivery_fee = delivery_fee;
         this.minimum_Fee = minimum_fee;
+        this.bag_fee = bag_fee;
         this.tax = tax;
         this.driver_tip = driver_tip;
         this.total = total;
@@ -31,6 +32,7 @@ class Order {
             this.loadSubtotalFinal(),
             this.loadDeliveryFee(),
             this.loadMinimumFee(),
+            this.loadBagFee(),
             this.loadTaxes(),
             this.loadDriverTip(),
             this.loadTotal(),
@@ -150,6 +152,20 @@ class Order {
         return parseFloat(minimumFeeText);
     }
 
+    static loadBagFee() {
+        const spans = Array.from(document.querySelectorAll("span"));
+        const bagFeeSpans = spans.filter(e => e.textContent.includes("Bag fee"));
+        if (bagFeeSpans.length == 0) {
+            console.log("No bag fee spans found!");
+            return NaN;
+        }
+        const bagFeeTable = bagFeeSpans[0].parentElement;
+        const bagFeeDiv = Array.from(bagFeeTable.children).at(-1);
+        const bagFeeSpan = Array.from(bagFeeDiv.children).at(-1);
+        const bagFeeText = bagFeeSpan.textContent.replace("$", "").trim();
+        return parseFloat(bagFeeText);
+    }
+
     static loadTaxes() {
         const spans = Array.from(document.querySelectorAll("span"));
         const taxSpans = spans.filter(e => e.textContent.includes("Tax"));
@@ -225,6 +241,10 @@ class Order {
             {
                 label: "Minimum Fee",
                 run: () => this.loadMinimumFee()
+            },
+            {
+                label: "Bag Fee",
+                run: () => this.loadBagFee()
             },
             {
                 label: "Taxes",
