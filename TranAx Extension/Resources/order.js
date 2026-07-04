@@ -2,7 +2,7 @@
 /* global Item, waitForElement, Transaction, waitForElementNot */
 
 class Order {
-    constructor(orderNumber, orderDate, orderType, subtotal_initial, savings, subtotal_final, delivery_fee, tax, driver_tip, total, items, transactions) {
+    constructor(orderNumber, orderDate, orderType, subtotal_initial, savings, subtotal_final, delivery_fee, minimum_fee, tax, driver_tip, total, items, transactions) {
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
         this.orderType = orderType;
@@ -10,6 +10,7 @@ class Order {
         this.savings = savings;
         this.subtotal_final = subtotal_final;
         this.delivery_fee = delivery_fee;
+        this.minimum_Fee = minimum_fee;
         this.tax = tax;
         this.driver_tip = driver_tip;
         this.total = total;
@@ -29,6 +30,7 @@ class Order {
             this.loadSavings(),
             this.loadSubtotalFinal(),
             this.loadDeliveryFee(),
+            this.loadMinimumFee(),
             this.loadTaxes(),
             this.loadDriverTip(),
             this.loadTotal(),
@@ -134,6 +136,20 @@ class Order {
         return parseFloat(deliveryText);
     }
 
+    static loadMinimumFee() {
+        const spans = Array.from(document.querySelectorAll("span"));
+        const minimumFeeSpans = spans.filter(e => e.textContent.includes("order minimum"));
+        if (minimumFeeSpans.length == 0) {
+            console.log("No minimum fee spans found!");
+            return NaN;
+        }
+        const minimumFeeTable = minimumFeeSpans[0].parentElement;
+        const minimumFeeDiv = Array.from(minimumFeeTable.children).at(-1);
+        const minimumFeeSpan = Array.from(minimumFeeDiv.children).at(-1);
+        const minimumFeeText = minimumFeeSpan.textContent.replace("$", "").trim();
+        return parseFloat(minimumFeeText);
+    }
+
     static loadTaxes() {
         const spans = Array.from(document.querySelectorAll("span"));
         const taxSpans = spans.filter(e => e.textContent.includes("Tax"));
@@ -205,6 +221,10 @@ class Order {
             {
                 label: "Delivery Fee",
                 run: () => this.loadDeliveryFee()
+            },
+            {
+                label: "Minimum Fee",
+                run: () => this.loadMinimumFee()
             },
             {
                 label: "Taxes",
