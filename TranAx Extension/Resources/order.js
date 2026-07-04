@@ -181,7 +181,7 @@ class Order {
 
     static loadDriverTip() {
         const spans = Array.from(document.querySelectorAll("span"));
-        const tipSpans = spans.filter(e => e.textContent.includes("Driver tip"));
+        const tipSpans = spans.filter(e => e.textContent.includes("Driver tip") && e.classList.length > 0);
         if (tipSpans.length == 0) {
             console.log("No tip spans found!");
             return 0;
@@ -333,6 +333,8 @@ class Order {
             "savings",
             "subtotal_final",
             "delivery_fee",
+            "minimum_fee",
+            "bag_fee",
             "tax",
             "driver_tip",
             "total"
