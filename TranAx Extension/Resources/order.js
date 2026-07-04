@@ -364,6 +364,8 @@ class Order {
             this.savings,
             this.subtotal_final,
             this.delivery_fee,
+            this.minimum_Fee,
+            this.bag_fee,
             this.tax,
             this.driver_tip,
             this.total
