@@ -20,10 +20,19 @@ async function gatherData(toDate) {
     let orders = [];
 
     do {
-        let orderElements = [...document.querySelectorAll("[data-testid*='order-']")].filter(e => e.attributes["data-testid"].value.match(/order-\d+/) != null);
-        for (let i = 0; i < orderElements.length; i++) {
+        let orderIndex = 0;
+        while (true) {
+            // Keep only stable identifiers between navigations; re-query the element before using it.
+            const orderTestIds = [...document.querySelectorAll("[data-testid]")]
+                .map(element => element.getAttribute("data-testid"))
+                .filter(testId => /^(?:order-\d+|orderGroup-\d+)$/.test(testId));
+            if (orderIndex >= orderTestIds.length) break;
+
             if (orders.length > 0 && orders.at(-1).orderDate <= toDate) break;
-            let orderStubElement = document.querySelector(`[data-testid='order-${i}']`);
+            const orderTestId = orderTestIds[orderIndex++];
+            const orderStubElement = document.querySelector(`[data-testid='${orderTestId}']`);
+            if (orderStubElement == null) continue;
+
             let orderStub = OrderStub.fromElement(orderStubElement);
             if (!orderStub.fulfilled) continue;
 
@@ -35,7 +44,8 @@ async function gatherData(toDate) {
 
             // Enter the order
             orderStub.button.click();
-            await waitForElement(".print-bill-body");
+            await sleepvar(3000, 8000);
+            await waitForElement("main");
             let order = await Order.fromPage(orderStub);
             orders = orders.concat([order]);
            
@@ -44,18 +54,24 @@ async function gatherData(toDate) {
             await sleepvar(3000, 8000);
             window.history.back();
             await sleepvar(3000, 8000);
-            await waitForElement("[data-testid*='orderGroup']");
+            await waitForElement("[data-testid='orderGroup-0'], [data-testid='order-0']");
             console.log(`Order: ${orders}`);
         }
 
         // next page
-        const originalOrderText = document.querySelector("[data-testid='order-0']").textContent;
-        document.querySelector("button[data-automation-id='next-pages-button']").click();
-        await sleepvar(2000, 8000);
-        await waitForElementContentChange("[data-testid='order-0']", 20000, el => el.textContent, originalOrderText);
-        await waitForElement("button[data-automation-id='next-pages-button']");
+        const firstOrderTestId = [...document.querySelectorAll("[data-testid]")]
+            .map(element => element.getAttribute("data-testid"))
+            .find(testId => /^(?:order-\d+|orderGroup-\d+)$/.test(testId));
+        const nextPageButton = document.querySelector("button[data-automation-id='next-pages-button']");
+        if (firstOrderTestId == null || nextPageButton == null || nextPageButton.disabled) break;
 
-    } while(orders.at(-1).orderDate > toDate)
+        const firstOrderSelector = `[data-testid='${firstOrderTestId}']`;
+        const originalOrderText = document.querySelector(firstOrderSelector).textContent;
+        nextPageButton.click();
+        await sleepvar(2000, 8000);
+        await waitForElementContentChange(firstOrderSelector, 20000, el => el.textContent, originalOrderText);
+
+    } while(orders.length > 0 && orders.at(-1).orderDate > toDate)
     
     let itemTSVContent = Order.toItemTSV(orders);
     downloadTSV("order_items.tsv", itemTSVContent);

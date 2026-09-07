@@ -10,16 +10,20 @@ class OrderStub {
 
     static fromElement(object) {
         const orderTypeObj = object.querySelector("[id*='caption']");
-        const orderIdMatch = orderTypeObj.id.match(/caption-(\d+)-*/);
+        const orderIdMatch = orderTypeObj?.id.match(/caption-(\d+)-*/);
+        const orderButton = object.querySelector("button[data-automation-id*='view-order-details']");
+        const buttonOrderIdMatch = orderButton?.getAttribute("aria-label")?.match(/order number (\d+)/i);
         const orderId = orderIdMatch ? parseInt(orderIdMatch[1]) : null;
-        const orderType = orderTypeObj.innerText;
+        const resolvedOrderId = orderId ?? (buttonOrderIdMatch ? parseInt(buttonOrderIdMatch[1]) : null);
+        const orderType = orderTypeObj?.innerText || "";
 
-        const boldText = object.querySelector("h2");
-        const canceled = boldText.innerText == "Canceled"
+        const headings = [...object.querySelectorAll("h2, h3")];
+        const canceled = headings.some(heading => heading.innerText.trim().toLowerCase() == "canceled");
         let orderDate = new Date();
         let fulfilled = true;
         if (!canceled) {
-            let dateMatch = boldText.innerText.match(/\w{3,9} \d{2}(, \d{4})?/);
+            const dateText = headings.map(heading => heading.innerText).join(" ");
+            let dateMatch = dateText.match(/\b\w{3,9} \d{1,2}(, \d{4})?\b/);
             if (dateMatch == null) {
                 orderDate = new Date();
                 fulfilled = false;
@@ -32,7 +36,6 @@ class OrderStub {
                 orderDate = dateMatch[1] != null ?someDate : new Date(year, month, day);
             }
         }
-        let button = object.querySelector("button[data-automation-id*='view-order-details']");
-        return new OrderStub(orderId, orderType, orderDate, button, canceled, fulfilled);
+        return new OrderStub(resolvedOrderId, orderType, orderDate, orderButton, canceled, fulfilled);
     }
 }

@@ -45,6 +45,32 @@ class Order {
         return this.loadSavings() < 0;
     }
 
+    static loadAmountForLabels(labels) {
+        const normalizedLabels = labels.map(label => label.toLowerCase());
+        const labelSpans = Array.from(document.querySelectorAll("span")).filter(span =>
+            normalizedLabels.includes(span.textContent.trim().toLowerCase())
+        );
+
+        for (const labelSpan of labelSpans) {
+            let row = labelSpan.parentElement;
+            while (row != null && row !== document.body) {
+                const amountMatch = row.textContent.match(/[−-]?\s*\$\s*[\d,]+(?:\.\d{1,2})?/);
+                if (amountMatch != null) {
+                    return parseFloat(
+                        amountMatch[0]
+                            .replace("$", "")
+                            .replaceAll(",", "")
+                            .replace("−", "-")
+                            .replace(/\s/g, "")
+                    );
+                }
+                row = row.parentElement;
+            }
+        }
+
+        return NaN;
+    }
+
     static async loadTransactions(orderNumber) {
         // Open Bar
         let ctaButton = document.querySelector("button[data-testid='charge-history-cta']");
@@ -86,8 +112,13 @@ class Order {
         }
         const subtotalSpan = subtotalSpans[0];
         const subtotalDiv = subtotalSpan.parentNode;
-        const subtotalText = subtotalDiv.children[1].textContent.replace("$", "").trim();
-        return parseFloat(subtotalText);
+        const subtotalValue = subtotalDiv.children[1];
+        if (subtotalValue != null) {
+            const subtotalText = subtotalValue.textContent.replace("$", "").trim();
+            return parseFloat(subtotalText);
+        }
+
+        return this.loadAmountForLabels(["Subtotal"]);
     }
 
     static loadSubtotalFinal() {
@@ -104,21 +135,31 @@ class Order {
         const subtotalSpan = subtotalSpans[0];
         const subtotalContent = noAria ? subtotalSpan.parentNode.parentNode.children[1].textContent : subtotalSpan.textContent;
         const subtotalText = subtotalContent.replace("$", "").trim();
+        const subtotal = parseFloat(subtotalText);
 
-        return parseFloat(subtotalText);
+        if (noAria) {
+            const savings = this.loadSavings();
+            if (Number.isFinite(subtotal) && Number.isFinite(savings)) {
+                return subtotal - Math.abs(savings);
+            }
+        }
+
+        return subtotal;
     }
 
     static loadSavings() {
         const spans = Array.from(document.querySelectorAll("span"));
-        const savingSpans = spans.filter(e => e.textContent.includes("Savings"));
+        const savingSpans = spans.filter(e => e.textContent.trim().toLowerCase().includes("savings"));
         if (savingSpans.length == 0) {
-            console.log("No savings spans found!");
-            return NaN;
+            return this.loadAmountForLabels(["Savings", "Promotion"]);
         }
         const savingSpan = savingSpans[0];
         const isGas = savingSpan.textContent.includes("Gas");
         const savingDiv = isGas? savingSpan.parentNode.parentNode : savingSpan.parentNode;
         const savingContent = isGas ? Array.from(savingDiv.children).at(-1) : savingDiv.children[2];
+        if (savingContent == null) {
+            return this.loadAmountForLabels(["Savings", "Promotion"]);
+        }
         const savingText = savingContent.textContent.replace("$", "").trim();
         return parseFloat(savingText);
     }

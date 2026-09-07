@@ -102,6 +102,19 @@ function showPage(pageId) {
     });
 }
 
+function isSupportedOrderPage(urlString) {
+    try {
+        const url = new URL(urlString);
+        const hostname = url.hostname.replace(/^www\./, "");
+        const path = url.pathname.toLowerCase();
+
+        return ["walmart.com", "samsclub.com"].includes(hostname)
+            && path.includes("/order");
+    } catch {
+        return false;
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     console.log("Extension version:", browser.runtime.getManifest().version);
 
@@ -163,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
         const url = tabs[0]?.url || "";
 
-        if (url.includes("walmart.com/order")) {
+        if (isSupportedOrderPage(url)) {
             content.classList.remove("hidden");
             initDate();
             showPage(mainPageId);
