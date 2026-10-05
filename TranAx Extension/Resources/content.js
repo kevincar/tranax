@@ -90,8 +90,13 @@ browser.runtime.sendMessage({ greeting: "hello" }).then((response) => {
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action == "download_tsv") {
         return (async () => {
-            await gatherData(new Date(request.date));
-            return { ok: true };
+            try {
+                await gatherData(new Date(request.date));
+                return { ok: true };
+            } catch (error) {
+                console.error("Order download stopped:", error);
+                return { ok: false, error: error.message };
+            }
         })();
     }
 

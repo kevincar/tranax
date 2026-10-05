@@ -1,7 +1,24 @@
 
 /* global Item, waitForElement, Transaction, waitForElementNot */
 
+class OrderValidationError extends Error {
+    constructor(orderNumber, field, value) {
+        super(`Order ${orderNumber}: required field "${field}" could not be extracted (value: ${value}).`);
+        this.name = "OrderValidationError";
+        this.orderNumber = orderNumber;
+        this.field = field;
+        this.value = value;
+    }
+}
+
 class Order {
+    static get fieldSchema() {
+        return {
+            required: ["subtotal_final", "tax", "total"],
+            optional: ["subtotal_initial", "savings", "delivery_fee", "minimum_Fee", "bag_fee", "driver_tip"]
+        };
+    }
+
     constructor(orderNumber, orderDate, orderType, subtotal_initial, savings, subtotal_final, delivery_fee, minimum_fee, bag_fee, tax, driver_tip, total, items, transactions) {
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
@@ -21,48 +38,96 @@ class Order {
 
     static async fromPage(stub) {
         const orderNumber = document.querySelector(".print-bill-bar-id").innerText;
+        const items = this.loadItems();
+        const subtotalInitial = this.loadSubtotalInitial(items);
+        const discounts = this.loadTotalSavings(items);
+        let subtotalFinal = this.loadSubtotalFinal(items);
+        if (!Number.isFinite(subtotalFinal) && Number.isFinite(subtotalInitial) && Number.isFinite(discounts)) {
+            subtotalFinal = subtotalInitial - discounts;
+        }
+
+        const orderData = {
+            subtotal_initial: subtotalInitial,
+            savings: this.loadSavings(items),
+            subtotal_final: subtotalFinal,
+            delivery_fee: this.loadDeliveryFee(),
+            minimum_Fee: this.loadMinimumFee(),
+            bag_fee: this.loadBagFee(),
+            tax: this.loadTaxes(),
+            driver_tip: this.loadDriverTip(),
+            total: this.loadTotal()
+        };
+        this.validateRequiredFields(orderNumber, orderData);
+
+        // Capture page values before opening the charge-history panel changes the DOM.
         const transactions = await Order.loadTransactions(orderNumber);
-        const items = [... document.querySelectorAll("div[data-testid='itemtile-stack']")].map(e => Item.fromElement(e));
         return new Order(
             orderNumber,
             stub.orderDate,
             stub.orderType,
-            this.loadSubtotalInitial(), 
-            this.loadSavings(),
-            this.loadSubtotalFinal(),
-            this.loadDeliveryFee(),
-            this.loadMinimumFee(),
-            this.loadBagFee(),
-            this.loadTaxes(),
-            this.loadDriverTip(),
-            this.loadTotal(),
+            orderData.subtotal_initial,
+            orderData.savings,
+            orderData.subtotal_final,
+            orderData.delivery_fee,
+            orderData.minimum_Fee,
+            orderData.bag_fee,
+            orderData.tax,
+            orderData.driver_tip,
+            orderData.total,
             items,
             transactions
         );
     }
 
-    static hasSavings() {
-        return this.loadSavings() < 0;
+    static validateRequiredFields(orderNumber, orderData) {
+        for (const field of this.fieldSchema.required) {
+            if (!Number.isFinite(orderData[field])) {
+                throw new OrderValidationError(orderNumber, field, orderData[field]);
+            }
+        }
     }
 
-    static loadAmountForLabels(labels) {
+    static loadItems() {
+        return [...document.querySelectorAll("div[data-testid='itemtile-stack']")]
+            .map(element => Item.fromElement(element));
+    }
+
+    static loadItemSavings(items = null) {
+        const resolvedItems = items ?? this.loadItems();
+        return resolvedItems.reduce((total, item) => {
+            return total + (item.included && Number.isFinite(item.discount) ? Math.abs(item.discount) : 0);
+        }, 0);
+    }
+
+    static loadTotalSavings(items = null) {
+        const itemSavings = this.loadItemSavings(items);
+        const orderSavings = this.loadSavings(items);
+        if (Number.isFinite(orderSavings)) {
+            return itemSavings + Math.abs(orderSavings);
+        }
+        return itemSavings;
+    }
+
+    static hasSavings(items = null) {
+        const savings = this.loadTotalSavings(items);
+        return Number.isFinite(savings) && savings > 0;
+    }
+
+    static loadAmountForLabels(labels, root = document) {
         const normalizedLabels = labels.map(label => label.toLowerCase());
-        const labelSpans = Array.from(document.querySelectorAll("span")).filter(span =>
+        const labelSpans = Array.from(root.querySelectorAll("span")).filter(span =>
             normalizedLabels.includes(span.textContent.trim().toLowerCase())
         );
 
         for (const labelSpan of labelSpans) {
             let row = labelSpan.parentElement;
-            while (row != null && row !== document.body) {
-                const amountMatch = row.textContent.match(/[−-]?\s*\$\s*[\d,]+(?:\.\d{1,2})?/);
-                if (amountMatch != null) {
-                    return parseFloat(
-                        amountMatch[0]
-                            .replace("$", "")
-                            .replaceAll(",", "")
-                            .replace("−", "-")
-                            .replace(/\s/g, "")
-                    );
+            while (row != null && row !== root && row !== document.body) {
+                const rowText = row.textContent.trim();
+                if (rowText.length < 180) {
+                    const amounts = rowText.match(/[−-]?\s*\$\s*[\d,]+(?:\.\d{1,2})?/g) ?? [];
+                    if (amounts.length > 0) {
+                        return parseFloat(amounts.at(-1).replace(/[$,\s]/g, "").replace("−", "-"));
+                    }
                 }
                 row = row.parentElement;
             }
@@ -98,152 +163,81 @@ class Order {
         }
     }
 
-    static loadSubtotalInitial() {
-        if (!this.hasSavings()) {
-            console.log("No Savings... No subtotal initial!");
-            return NaN;
+    static loadSubtotalInitial(items = null) {
+        const summary = this.getPaymentSummary();
+        const previousSubtotal = Array.from(summary.querySelectorAll("span"))
+            .find(span => /previous subtotal/i.test(span.textContent));
+        const previousAmount = previousSubtotal?.textContent.match(/[−-]?\s*\$\s*[\d,]+(?:\.\d{1,2})?/);
+        if (previousAmount != null) {
+            return parseFloat(previousAmount[0].replace(/[$,\s]/g, "").replace("−", "-"));
         }
 
-        const spans = Array.from(document.querySelectorAll("span"));
-        const subtotalSpans = spans.filter(e => e.textContent.includes("Subtotal"));
-        if (subtotalSpans.length == 0) {
-            console.log("No subtotal spans found!");
-            return NaN;
-        }
-        const subtotalSpan = subtotalSpans[0];
-        const subtotalDiv = subtotalSpan.parentNode;
-        const subtotalValue = subtotalDiv.children[1];
-        if (subtotalValue != null) {
-            const subtotalText = subtotalValue.textContent.replace("$", "").trim();
-            return parseFloat(subtotalText);
-        }
-
-        return this.loadAmountForLabels(["Subtotal"]);
+        const subtotal = this.loadAmountForLabels(["Subtotal"], summary);
+        const savings = this.loadTotalSavings(items);
+        return Number.isFinite(subtotal) && Number.isFinite(savings) ? subtotal + savings : subtotal;
     }
 
-    static loadSubtotalFinal() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const potSpans = spans.filter(e => e.ariaLabel?.includes("savings"));
-        const noAria = potSpans.length == 0;
-        const subtotalSpans = noAria ? spans.filter(e => e.textContent.includes("Subtotal")) : potSpans;
+    static loadSubtotalFinal(items = null) {
+        return this.loadAmountForLabels(["Subtotal"], this.getPaymentSummary());
+    }
 
-        if (subtotalSpans.length == 0) {
-            console.log("No subtotal spans found!");
-            return NaN;
-        }
+    static getPaymentSummary() {
+        const summaries = Array.from(document.querySelectorAll(".bill-order-payment-spacing"));
+        return summaries.reverse().find(summary =>
+            Array.from(summary.querySelectorAll("span")).some(span => span.textContent.trim() === "Subtotal")
+        ) ?? document;
+    }
 
-        const subtotalSpan = subtotalSpans[0];
-        const subtotalContent = noAria ? subtotalSpan.parentNode.parentNode.children[1].textContent : subtotalSpan.textContent;
-        const subtotalText = subtotalContent.replace("$", "").trim();
-        const subtotal = parseFloat(subtotalText);
+    static loadDisplayedSavings() {
+        const summary = this.getPaymentSummary();
+        const spans = Array.from(summary.querySelectorAll("span"));
+        const label = spans.find(span => /^(savings|promotion)$/i.test(span.textContent.trim()));
+        if (label == null) return NaN;
 
-        if (noAria) {
-            const savings = this.loadSavings();
-            if (Number.isFinite(subtotal) && Number.isFinite(savings)) {
-                return subtotal - Math.abs(savings);
+        let row = label.parentElement;
+        while (row != null && row !== summary && row !== document.body) {
+            const amounts = row.textContent.match(/[−-]?\s*\$\s*[\d,]+(?:\.\d{1,2})?/g) ?? [];
+            if (amounts.length > 0) {
+                return parseFloat(amounts.at(-1).replace(/[$,\s]/g, "").replace("−", "-"));
             }
+            row = row.parentElement;
         }
-
-        return subtotal;
+        return NaN;
     }
 
-    static loadSavings() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const savingSpans = spans.filter(e => e.textContent.trim().toLowerCase().includes("savings"));
-        if (savingSpans.length == 0) {
-            return this.loadAmountForLabels(["Savings", "Promotion"]);
+    static loadSavings(items = null) {
+        const displayedSavings = this.loadDisplayedSavings();
+        const itemSavings = this.loadItemSavings(items);
+        if (!Number.isFinite(displayedSavings)) {
+            return itemSavings > 0 ? 0 : displayedSavings;
         }
-        const savingSpan = savingSpans[0];
-        const isGas = savingSpan.textContent.includes("Gas");
-        const savingDiv = isGas? savingSpan.parentNode.parentNode : savingSpan.parentNode;
-        const savingContent = isGas ? Array.from(savingDiv.children).at(-1) : savingDiv.children[2];
-        if (savingContent == null) {
-            return this.loadAmountForLabels(["Savings", "Promotion"]);
-        }
-        const savingText = savingContent.textContent.replace("$", "").trim();
-        return parseFloat(savingText);
+
+        const residualSavings = Math.max(Math.abs(displayedSavings) - itemSavings, 0);
+        return displayedSavings < 0 ? -residualSavings : residualSavings;
     }
 
     static loadDeliveryFee() {
-        // This is often 0 with Wal-Mart +
-        const spans = Array.from(document.querySelectorAll("span"));
-        const deliverySpans = spans.filter(e => e.textContent.includes("delivery from"));
-        if (deliverySpans.length == 0) {
-            console.log("No delivery spans found!");
-            return NaN;
-        }
-        const deliveryTable = deliverySpans[0].parentElement;
-        const deliveryCostDiv = Array.from(deliveryTable.children).at(-1);
-        const deliverySpan = Array.from(deliveryCostDiv.children).at(-1);
-        const deliveryText = deliverySpan.textContent.replace("$", "").trim();
-        return parseFloat(deliveryText);
+        return this.loadAmountForLabels(["Delivery", "Delivery fee", "Shipping"], this.getPaymentSummary()) || 0;
     }
 
     static loadMinimumFee() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const minimumFeeSpans = spans.filter(e => e.textContent.includes("order minimum"));
-        if (minimumFeeSpans.length == 0) {
-            console.log("No minimum fee spans found!");
-            return NaN;
-        }
-        const minimumFeeTable = minimumFeeSpans[0].parentElement;
-        const minimumFeeDiv = Array.from(minimumFeeTable.children).at(-1);
-        const minimumFeeSpan = Array.from(minimumFeeDiv.children).at(-1);
-        const minimumFeeText = minimumFeeSpan.textContent.replace("$", "").trim();
-        return parseFloat(minimumFeeText);
+        return this.loadAmountForLabels(["Order minimum", "Minimum fee"], this.getPaymentSummary()) || 0;
     }
 
     static loadBagFee() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const bagFeeSpans = spans.filter(e => e.textContent.includes("Bag fee"));
-        if (bagFeeSpans.length == 0) {
-            console.log("No bag fee spans found!");
-            return NaN;
-        }
-        const bagFeeTable = bagFeeSpans[0].parentElement;
-        const bagFeeDiv = Array.from(bagFeeTable.children).at(-1);
-        const bagFeeSpan = Array.from(bagFeeDiv.children).at(-1);
-        const bagFeeText = bagFeeSpan.textContent.replace("$", "").trim();
-        return parseFloat(bagFeeText);
+        return this.loadAmountForLabels(["Bag fee"], this.getPaymentSummary()) || 0;
     }
 
     static loadTaxes() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const taxSpans = spans.filter(e => e.textContent.includes("Tax"));
-        if (taxSpans.length == 0) {
-            console.log("No tax spans found!");
-            return NaN;
-        }
-        const taxSpan = taxSpans[0];
-        const taxDiv = taxSpan.parentNode;
-        const taxText = Array.from(taxDiv.children).at(-1).textContent.replace("$", "").trim();
-        return parseFloat(taxText);
+        return this.loadAmountForLabels(["Taxes", "Tax"], this.getPaymentSummary());
     }
 
     static loadDriverTip() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const tipSpans = spans.filter(e => e.textContent.includes("Driver tip") && e.classList.length > 0);
-        if (tipSpans.length == 0) {
-            console.log("No tip spans found!");
-            return 0;
-        }
-        const tipSpan = tipSpans[0];
-        const tipDiv = tipSpan.parentNode;
-        const tipText = Array.from(tipDiv.children).at(-1).textContent.replace("$", "").trim();
-        return parseFloat(tipText);
+        return this.loadAmountForLabels(["Driver tip", "Tip"], this.getPaymentSummary()) || 0;
     }
 
     static loadTotal() {
-        const spans = Array.from(document.querySelectorAll("span"));
-        const totalSpans = spans.filter(e => e.textContent.includes("Total") && e.classList.length > 1);
-        if (totalSpans.length == 0) {
-            console.log("No total spans found!");
-            return NaN;
-        }
-        const totalSpan = totalSpans[0];
-        const totalDiv = totalSpan.parentNode;
-        const totalText = Array.from(totalDiv.children).at(-1).textContent.replace("$", "").trim();
-        return parseFloat(totalText);
+        return this.loadAmountForLabels(["Total"], this.getPaymentSummary());
     }
 
     static loadCardNumber() {

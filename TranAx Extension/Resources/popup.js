@@ -123,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const mainPageId = "main-page";
     const testStatus = document.getElementById("test-status");
     const downloadButton = document.getElementById("download-btn");
+    const downloadStatus = document.getElementById("download-status");
     const openTestButton = document.getElementById("open-test-btn");
     const backButton = document.getElementById("back-btn");
     const runTestsButton = document.getElementById("run-tests-btn");
@@ -139,18 +140,31 @@ document.addEventListener("DOMContentLoaded", () => {
         showPage(mainPageId);
     });
 
-    downloadButton.addEventListener("click", () => {
+    downloadButton.addEventListener("click", async () => {
         const date = new Date(
             document.getElementById("year").value,
             document.getElementById("month").value - 1,
             document.getElementById("day").value
         );
         const dateString = date.toISOString();
-        console.log("Sending message");
-        browser.runtime.sendMessage({
-            action: "download_tsv",
-            date: dateString
-        });
+        downloadButton.disabled = true;
+        downloadStatus.textContent = "Processing orders...";
+        downloadStatus.setAttribute("role", "status");
+        try {
+            const response = await browser.runtime.sendMessage({
+                action: "download_tsv",
+                date: dateString
+            });
+            if (!response?.ok) {
+                throw new Error(response?.error || "Download failed.");
+            }
+            downloadStatus.textContent = "Download complete.";
+        } catch (error) {
+            downloadStatus.textContent = error.message;
+            downloadStatus.setAttribute("role", "alert");
+        } finally {
+            downloadButton.disabled = false;
+        }
     });
 
     runTestsButton.addEventListener("click", async () => {
